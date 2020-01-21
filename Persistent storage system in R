@@ -1,0 +1,7 @@
+Persistent storage lets you do more with your Shiny apps. You can even use persistent storage to access and write to remote data sets that would otherwise be too big to manipulate in R.
+
+The table attached as an image with repository can serve as a reminder of the different storage types and when to use them.
+
+Remember that any method that uses local storage can only be used on Shiny Server, while any method that uses remote storage can be also used on shinyapps.io.
+
+You can view the original post of this article, and leave further comments, at http://deanattali.com/blog/shiny-persistent-data-storage/.
