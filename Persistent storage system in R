@@ -1,7 +1,18 @@
+#----
+Local vs remote storage
+Before diving into the different storage methods, one important distinction to understand is local storage vs remote storage.
+
+Local storage means saving a file on the same machine that is running the Shiny application.
+Functions like write.csv(), write.table(), and saveRDS() implement local storage because they will save a file on the machine running the app. Local storage is generally faster than remote storage, but it should only be used if you always have access to the machine that saves the files.
+
+Remote storage means saving data on another server, usually a reliable hosted server such as Dropbox, Amazon, or a hosted database.
+One big advantage of using hosted remote storage solutions is that they are much more reliable and can generally be more trusted to keep your data alive and not corrupted.
+When going through the different storage type options below, keep in mind that if your Shiny app is hosted on shinyapps.io, you will have to use a remote storage method for the time being. RStudio plans to implement persistent storage on shinyapps.io soon. In the meantime, using local storage is only an option if you’re hosting your own Shiny Server, though that comes at the price of having to manage a server and should only be done if you’re comfortable with administering a server.
+
+#----
 Persistent storage lets you do more with your Shiny apps. You can even use persistent storage to access and write to remote data sets that would otherwise be too big to manipulate in R.
 
 The table attached as an image with repository can serve as a reminder of the different storage types and when to use them.
-
 Remember that any method that uses local storage can only be used on Shiny Server, while any method that uses remote storage can be also used on shinyapps.io.
 
 You can view the original post of this article, and leave further comments, at http://deanattali.com/blog/shiny-persistent-data-storage/.
