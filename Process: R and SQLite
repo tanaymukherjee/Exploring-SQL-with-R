@@ -1,1 +1,242 @@
+# Creating SQLite databases from R
 
+
+1. Introduction
+These notes show how to create an SQLite database from within R. The notes outline two way in which R can communicate with SQLite databases: using the RSQLite package and using the sqldf package. Both packages use reasonably standard versions of SQL to administer and manage the database, but the two packages differ in the way meta statements are constructed.
+Management of SQLite databases requires the use of SQL (Structured Query Language). These notes show how to formulate relevant SQL requests within R and then to send the requests through the open connection to an SQLite database. But for a comprehensive treatment of SQL, and in paticular, SQLite’s flavour of SQL, readers should consult texts such as Allen & Owens (2010) and van der Lans (2009).
+For convenience, R code and data files are available at GitHub. There are two versions of the data. First, the data are available as three separate csv files. The three csv files contain data collected at the student level, data on their classes, and data on their schools. Second, the data are available in three sheets of an Excel workbook.
+These notes draw on Allen & Owens (2010) and van der Lans (2009) for working with SQLite’s flavour of SQL; and the manuals for sqldf (Grothendieck, 2012), XLConnect (Mirai Solutions GmbH, 2012), RSQLite (James & Falcon, 2012), and DBI (R Special Interest Group on Databases, 2009).
+
+
+2. Why RSQLite?  
+SQLite is an open source, embedded relational database. Relational databases are ubiquitous. “Relational” means that instead of storing data in a “flat” table such as an Excel spreadsheet, data are stored in separate tables and then the separate tables are related to one another. In turn, this means that if the data are normalised, redundancy is reduced. For instance, we might have data on students in a number of schools. In a flat table, the data on the schools needs to be repeated for each student belonging to a given school. If the data are normalised, then two tables are used: one to store the student-level data and a second to store the school-level data. The school-level data need to be stored only once for each school instead of repeatedly for every student. “Relational” refer to the way in which the two tables relate to each other. Strictly, “relational” refers to “relations” which is what tables are called in the underlying mathematical theory.
+“Open Source” means that it is unencumbered by licensing regimes and fees.
+“Embedded” means that the database engine has been designed to coexist inside other applications. This means that there is no negotiating access across networks, nor any administrative setting up (usernames, passwords, dns, etc). It means that the database engine is installed along with the application. This is the case with R. When the RSQLite package (the package that lets R play with SQLite) is installed, SQLite comes with it. There is no need for separate installation of an SQLite server. It also means that the data are stored in regular files and the files can be stored almost anywhere; they do not have to reside inside a server. 
+These notes are concerned with database management from within R. Nevertheless, it is noted that for those who prefer a point-and-click environment for database management, Graphic User Interfaces have been written for SQLite. Open source applications include SQLiteStudio and SQLiteManager for Firefox (which sits as an extension to the Firefox web browser). Commercial products include SQLite Maestro and Navicat for SQLite. But there are many open source and commercial applications to choose from.
+
+
+3. Installing software
+If R is not already installed, it is freely available from the Comprehensive R Archive Network (CRAN) at http://cran.r-project.org.
+The R packages, RSQLite and sqldf, are both available on CRAN. Both packages make use of the DBI (DataBase Interface) package, but DBI is installed with each and so there is no need for a separate installation.  Further, sqldf makes use of RSQLite, and so installing sqldf will also install all the necessary packages. To install sqldf, type the following command at the command prompt in the R console.
+ 
+ #----
+ install.packages(“sqldf”)
+ #----
+
+As noted earlier, the “embedding” of SQLite in RSQLite means that there is no need for a separate installation of the SQLite database engine – SQLite is part of the RSQLite and sqldf installations.
+Spreadsheets are a common method for distributing data, and R provides several methods for accessing spreadsheet data. Arguably the simplest is to save a spreadsheet as a comma or tab separated file, then to import the data into R using the read.table() or read.csv() functions. Alternatively, there are at least three packages that allow Excel files to be accessed directly. In these notes, I make use of functions available in the XLConnect package. To install XLConnect, type the following command at the command prompt in the R console.
+
+#----
+install.packages(“XLConnect”)
+#----
+
+
+4. Create a database
+First, the required packages are loaded. Both RSQLite and sqldf (and others too) are loaded by the following command.
+
+library(sqldf)
+ 
+Creating a database could not be simpler. Using RSQLite’s dbConnect() function, a connection to a database is opened. If the named database does not yet exist, one is created. The command below opens a connection to the Test.sqlite database. If the database does not yet exist, one is created in R’s working directory (the R code on GitHub shows how to change the working directory).
+
+#----
+db <- dbConnect(SQLite(), dbname=”Test.sqlite”)
+#----
+
+The connection to the database is given the name db. The name will be used later in this section and in the sections to follow. Strictly, the database does not yet exist, but it will do so as soon as some data has been entered.
+Similarly, creating a database using sqldf is just as simple. The following sqldf command creates Test1.sqlite in R’s working directory.
+
+#----
+sqldf(“attach ‘Test1.sqlite’ as new”)
+#----
+
+
+5. Adding data to the database – the hard way
+For the next three sections, RSQLite is used to enter data. First, in this section, data are entered by hand, then in following sections, I’ll demonstrate how to import data from csv files and from Excel workbooks.
+Using the db connection to the Test.sqlite database (see Section 3), the school data are entered using SQL queries. The following command creates a School table in the database, and sets the names of the columns (that is, variables) and their type. The School table will contain a school ID (which will be an integer), and three columns each containing text: Location, Authority, and SchSize. (Open the school.csv file to see the school data.)
+
+#----
+dbSendQuery(conn = db,
+       “CREATE TABLE School
+       (SchID INTEGER,
+        Location TEXT,
+        Authority TEXT,
+        SchSize TEXT)”)
+#----
+
+The School table has been created but it does not yet contain any data. The next command enters the school data by hand. There are three commands; one for each line of data. The INSERT command indicates which table is to receive the data; and the VALUES command contains the data.
+
+#----
+dbSendQuery(conn = db,
+         “INSERT INTO School
+         VALUES (1, ‘urban’, ‘state’, ‘medium’)”)
+ dbSendQuery(conn = db,
+         “INSERT INTO School
+         VALUES (2, ‘urban’, ‘independent’, ‘large’)”)
+ dbSendQuery(conn = db,
+         “INSERT INTO School
+         VALUES (3, ‘rural’, ‘state’, ‘small’)”)
+#----
+
+
+The next three commands show: the tables contained in Test.sqlite; the columns in the School table; and the data contained in the School table.
+ dbListTables(db)              # The tables in the database
+ dbListFields(db, “School”)    # The columns in a table
+ dbReadTable(db, “School”)     # The data in a table
+ 
+
+However, creating a table in this way is not so much hard work as tedious. Therefore, I’ll remove the school table and begin again.
+
+#----
+dbRemoveTable(db, “School”)     # Remove the School table.
+#----
+
+
+6. Entering data from csv files
+This sections shows how to enter data from csv files. The first method looks like it should work, but often there are problems.  The second method works better.  The data are contained in csv files: student.csv, class.csv, and school.csv. The csv files are imported directly into the database using the dbWriteTable() function.
+
+#----
+ dbWriteTable(conn = db, name = “Student”, value = “student.csv”,
+     row.names = FALSE, header = TRUE)
+ dbWriteTable(conn = db, name = “Class”, value = “class.csv”,
+     row.names = FALSE, header = TRUE)
+ dbWriteTable(conn = db, name = “School”, value = “school.csv”,
+     row.names = FALSE, header = TRUE)
+#----
+
+As before, the dbListTables, dbListFields, and dbReadTable show the tables in the database, the columns in a table, and the data in a table respectively.
+ dbListTables(db)                   # The tables in the database
+ dbListFields(db, “School”)         # The columns in a table
+ dbReadTable(db, “School”)          # The data in a table
+ 
+However, note the entries for SchSize in the School table. On my machine, each school size has \r attached. I think the problem is to do with line endings (See: http://stackoverflow.com/a/4335739/419994). One solution is to read the csv files into R as data frames, then to import the data frames into the database. The groups of commands below, first, delete the three tables from the database; second, read the three csv files into R as data frames; third, import the three data frames into the database; and finally, the last three commands check that the data have been correctly imported into the School table.
+ dbRemoveTable(db, “School”)   # Remove the tables
+ dbRemoveTable(db, “Class”)
+ dbRemoveTable(db, “Student”)
+
+ School <- read.csv(“school.csv”)  # Read csv files into R
+ Class <- read.csv(“class.csv”)
+ Student <- read.csv(“student.csv”)
+
+ # Import data frames into database
+ dbWriteTable(conn = db, name = “Student”, value = Student, row.names = FALSE)
+ dbWriteTable(conn = db, name = “Class”, value = Class, row.names = FALSE)
+ dbWriteTable(conn = db, name = “School”, value = School, row.names = FALSE)
+
+ dbListTables(db)                 # The tables in the database
+ dbListFields(db, “School”)       # The columns in a table
+ dbReadTable(db, “School”)        # The data in a table
+ 
+This time there are not extras attached to the entries in the last column. Another solution is to use sqldf to import the csv files – see Section 8 below.
+
+
+7. Entering data from Excel workbooks
+Instead of the data being given to us in csv files, the data could be contained in an Excel workbook. The loadWorkbook() and ReadWorksheet() functions of the XLConnect package provide a convenient way to get Excel data into R. Further, if the workbook contains multiple sheets (as the Test.xlsx workbook does), the multiple sheets can imported as one object; namely a list of data frames where each data frame contains the data of one of the Excel sheets. The commands below first remove the tables in the database, then import the Excel worksheets into R as a list of data frames, and the list is given the name Tables.
+ dbRemoveTable(db, “School”)        # Remove the tables
+ dbRemoveTable(db, “Class”)
+ dbRemoveTable(db, “Student”)
+
+# Import the three sheets of the Excel workbook
+
+#----
+ wb <- loadWorkbook(“Test.xlsx”)
+ Tables <- readWorksheet(wb, sheet = getSheets(wb))
+#----
+ 
+
+The str() function gives the structure of Tables (it is a list of three data frames, and the variable names in each data frames are also given). The names() function simply gives the names of the three data frames.
+ 
+#----
+ str(Tables)      # structure of Tables
+ names(Tables)    # Names of the elements of Tables
+#---- 
+
+
+#----
+The three data frames are extracted from the list, and imported into the database. The final set of three commands show that the tables (or at least the School table) have been imported correctly.
+ with(Tables, {
+   dbWriteTable(conn = db, name = “Student”, value = Student, row.names = FALSE)
+   dbWriteTable(conn = db, name = “Class”, value = Class, row.names = FALSE)
+   dbWriteTable(conn = db, name = “School”, value = School, row.names = FALSE)
+   })
+
+ dbListTables(db)               # The tables in a data frame
+ dbListFields(db, “School”)     # The columns in a table
+ dbReadTable(db, “School”)      # The data in a table
+#----
+
+Before leaving RSQLite, there is a bit of tidying-up to do.  The connection to the database is closed, and as a precaution, the three data frames are removed from R’s environment.
+ 
+#----
+ dbDisconnect(db)            # Close connection
+ rm(list = c(“Tables”, “Class”, “School”, “Student”))   # Remove data frames
+#----
+
+
+8. Importing data using sqldf
+This section shows how to import csv data and Excel workbook data into databases using functions from the sqldf package. The first method below imports the csv files directly into the database. The read.csv.sql() function contains three parts: the name of the csv files that are to be read; an sql query which, among other things, gives the names of the tables to be created; and the name of the database into which the data are imported. This time, the data are imported into Test1.sqlite. The three commands below import data from the student.csv, class.csv, and school.csv files into the Student, Class, and School tables of Test1.sqlite database. Once the data are imported,  the next three commands give: the names of the tables in a database; the columns in a table; and the data in a table. Note that the format of the commands differ from the corresponding RSQLite commands. Also, note that sqldf seems to have handled the end-of-line problems that occurred when the dbWriteTable() function was used to import csv data (see the beginning of Section 6).
+ 
+#----
+ read.csv.sql(“student.csv”, sql = “CREATE TABLE Student AS SELECT * FROM file”,
+   dbname = “Test1.sqlite”)
+#----
+
+#----
+ read.csv.sql(“class.csv”, sql = ” CREATE TABLE Class AS SELECT * FROM file”,
+   dbname = “Test1.sqlite”)
+ read.csv.sql(“school.csv”, sql = ” CREATE TABLE School AS SELECT * FROM file”,
+   dbname = “Test1.sqlite”)
+   # Tables in the database
+#----
+
+
+ sqldf(“SELECT * FROM sqlite_master”, dbname = “Test2.sqlite”)$tbl_name  
+
+   # Columns in the School table
+ sqldf(“pragma table_info(School)”, dbname = “Test2.sqlite”)$name   
+
+   # Data in the School table   
+ sqldf(“SELECT * FROM School”, dbname = “Test2.sqlite”)                  
+The second method imports Excel workbook sheets into R as data frames, then the data frames are imported into the database. The sheets of the workbook are imported using functions from the XLConnect package as before. However, sqldf does not like a table name to be the same as a data frame name, so the data frame names are changed.
+
+ wb <- loadWorkbook(“Test.xlsx”)
+ Tables <- readWorksheet(wb, sheet = getSheets(wb))
+
+   # Tables is a list of data frames.
+ str(Tables)
+ names(Tables)
+ names(Tables) = c(“stud”, “cl”, “sch”)    # Change the names of the data frames
+The names of the data frames in Tabels where changed to stud, cl, and sch. Next, a new empty database is created, and the data frames are imported into the database: sch data frame is imported into the School table; the cl data frame is imported into the Class table; and the stud data frame is imported into the Student table of the Test2.sqlite database. The three sqldf() functions are wrapped up in a with() which contains the name of the list so that R knows where to look for each data frame.
+
+   # Create an empty database.
+ sqldf(“ATTACH ‘Test2.sqlite’ AS new”)
+
+   # Import data frames from Tables into database
+ with(Tables, {
+   sqldf(“CREATE TABLE School AS SELECT * FROM sch”, dbname = “Test2.sqlite”)
+   sqldf(“CREATE TABLE Class AS SELECT * FROM cl”, dbname = “Test2.sqlite”)
+   sqldf(“CREATE TABLE Student AS SELECT * FROM stud”, dbname = “Test2.sqlite”)
+   })
+
+And finally, a check that the tables have been imported correctly into the Test2.sqlite database.
+   # Tables in the database
+ sqldf(“SELECT * FROM sqlite_master”, dbname = “Test2.sqlite”)$tbl_name  
+
+   # Columns in the School table
+ sqldf(“pragma table_info(School)”, dbname = “Test2.sqlite”)$name   
+
+   # Data in the School table   
+ sqldf(“SELECT * FROM School”, dbname = “Test2.sqlite”)   
+ 
+ 
+References:
+Allen, G. & Owens, M. (2010). The definitive guide to SQLite (2nd Ed.). APress.
+
+Grothendieck, G. (2012). sqldf: Perform SQL selects on R data frames. R package version 0.4-6.4. http://cran.r-project.org/package=sqldf
+
+James, D. & Falcon, S. (2012). RSQLite: SQLite interface for R. R package version 0.11.2. http://cran.r-project.org/package=RSQLite
+
+Mirai Solutions GmbH. (2012). XLConnect: Excel Connector for R. R package version 0.2-3. http://cran.r-project.org/package=XLConnect
+
+R Special Interest Group on Databases, (2009). DBI: R Database Interface. R package version 0.2-5. http://cran.r-project.org/package=DBI
+
+van der Lans, R. (2009). The SQL guide to SQLite: A comprehensive tutorial and reference for the SQLite open source database server. LuLu.
